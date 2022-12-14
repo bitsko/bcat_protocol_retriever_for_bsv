@@ -116,6 +116,9 @@ bsv_bcatjson_d="bsv_bcat_json_d"
 if [[ ! -d "${bsv_bcatjson_d}" ]]; then
         mkdir "${bsv_bcatjson_d}"
 fi
+
+# add duplicates logic here
+
 echo "Json manifest is located at:"
 bsv_bcat_json_ | jq > "${bsv_bcatjson_d}/${tx_hash}.json"
 ls "${bsv_bcatjson_d}/${tx_hash}.json"
