@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+# work in progress
+
 # retrieve bcat files using a bsv node
 
-# create a json file that includes the file information and
+# creates a json manifest that includes the file information and
 # list of txid where the data is stored
 
 bsv_script_asm(){ jq .vout[0].scriptPubKey.asm; }
@@ -111,6 +113,7 @@ bsv_bcatjson_d="bsv_bcat_json_d"
 if [[ ! -d "${bsv_bcatjson_d}" ]]; then
         mkdir "${bsv_bcatjson_d}"
 fi
+echo "Json manifest is located at:"
 bsv_bcat_json_ | jq > "${bsv_bcatjson_d}/${tx_hash}.json"
 ls "${bsv_bcatjson_d}/${tx_hash}.json"
 }
