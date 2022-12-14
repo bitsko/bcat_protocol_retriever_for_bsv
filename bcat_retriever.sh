@@ -1,8 +1,10 @@
+#!/usr/bin/env bash
+# example usage:
 # $ ./bcat_retriever.sh e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
 # spec: https://bcat.bico.media/
 # upload files here: https://bico.media/
 
-example_txid=e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
+# example_txid=e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
 
 tput_coloring(){
 	if [[ -z $(command -v tput) ]]; then
