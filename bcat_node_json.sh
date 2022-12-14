@@ -25,6 +25,9 @@ name_bcat_file(){
         if [[ "${bcat_file_name}" == ' ' ]]; then
                 bcat_file_name="${1}".file
         fi
+        if [[ -f $bcat_file_name ]]; then
+                bcat_file_name="${bcat_file_name}.dup"
+        fi
 }
 
 print_manifest(){
