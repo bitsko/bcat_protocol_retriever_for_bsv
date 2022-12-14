@@ -1,10 +1,23 @@
 #!/usr/bin/env bash
+
+# work in progress
+
 # example usage:
 # $ ./bcat_retriever.sh e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
 # spec: https://bcat.bico.media/
 # upload files here: https://bico.media/
 
 # example_txid=e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
+
+#!/bin/bash
+
+# bcat_retriever.sh uses WhatsOnChain.com api and BSV-JS to download files stored on the bsv blockchain
+# example:
+# $ ./bcat_retriever.sh e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
+# spec: https://bcat.bico.media/
+# upload files here: https://bico.media/
+
+example_txid=e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
 
 tput_coloring(){
 	if [[ -z $(command -v tput) ]]; then
@@ -32,9 +45,8 @@ size_checker(){
        		echo "${bright}bcat tx:  ${green}$tx_hash${normal}"
 	else
        		echo_red "error ; tx_hash not 64 chars"
-		remove_file_on_exit
-		script_exit
 	        exit 1
+		script_exit
 	fi
 }
 
@@ -79,13 +91,6 @@ hash2asm_variables(){
 	bcat_address=15DHFxWZJT58f9nhyGnsRBqrgwK4W6h4Up
 	bcat_transaction=313544484678575a4a54353866396e6879476e735242717267774b34573668345570
 	bcat_tx_part=31436844487a646431483477536a67474d48796e645a6d3671784544476a71704a4c
-	canonic_xyz_ebook=63616e6f6e69632e78797a
-}
-
-remove_file_on_exit(){
-	if [[ -f "$bc_Name" ]]; then
-		rm "$bc_Name"
-	fi
 }
 
 hash2asm(){
@@ -94,26 +99,18 @@ hash2asm(){
         	get_hex="$(curl -s --location --request GET $woc_url)"
 	else
 	        echo_red "error; tx_hash not 64 chars"
-		remove_file_on_exit
-		script_exit
 	        exit 1
+		script_exit
 	fi
 	asm_txo=$(set_asm_txo)
 	if [[ -z "$asm_txo" ]]; then
         	echo_red "error; asm returned null"
-	        remove_file_on_exit
+	        exit 1
 		script_exit
-		exit 1
 	else
 		asm_arr="$(sed 's/ /\n/g' <<<"$asm_txo")"
 	fi
 
-	if [[ "$(cut -d ' ' -f 4 <<<"$asm_txo")" ==  "$canonic_xyz_ebook" ]]; then
-		echo_red "${bright}error; this is a canonic.xyz ebook and not viewable"
-		remove_file_on_exit
-		script_exit
-		exit 1
-	fi
 	if [[ "$(cut -d ' ' -f 3 <<<"$asm_txo")" ==  "$bcat_transaction" ]]; then
         	bcatPts="$(sed '1,8d' <<<"$asm_arr")"
 		tx_List=$(head -n 8 <<<"$asm_arr")
@@ -133,9 +130,8 @@ hash2asm(){
 	        xxd -r -p <<<"$(sed -n '4p' <<<"$asm_arr")" >> "$bc_Name"
 	else
 	        echo_red "error; not a bcat transaction hash"
-		remove_file_on_exit
-		script_exit
 		exit 1
+		script_exit
 	fi
 }
 
@@ -152,6 +148,8 @@ print_location(){
 		file_info=$(file "$bc_Name")
 		echo "${bright}${blue}${file_info}${normal}"
 		echo_bright "$PWD/\"$bc_Name\""
+		file_size=$(ls -al "${bc_Name}" | awk '{ print $5 }')
+		file_sha256sum=$(sha256sum "${bc_Name}" | cut -d ' ' -f 1 )
 	fi
 }
 
@@ -164,23 +162,63 @@ script_exit(){
 	echo_green script_exit
 }
 
-tput_coloring
+bsv_bcat_json_(){
+cat << BSVBCATJSON
+{
+  "txid": "${tx_hash_}",
+  "bcat": {
+    "manifest": [
+      ${tx_List}
+    ],
+    "text": [
+     ${line_array}
+    ],
+    "parts": [
+      ${bcatPts}
+    ],
+    "info": "${file_info}",
+    "size": "${file_size}",
+    "sha256sum": "${file_sha256sum}"
+  }
+}
+BSVBCATJSON
+}
 
+sed_make_json_list(){
+	sed 's/\(^\|$\)/"/g;s/$/,/g;$s/.$//;s/\n/ /g'
+}
+
+make_bcat_json(){
+tx_List=$(sed_make_json_list<<<"${tx_List}")
+bcatPts=$(sed_make_json_list<<<"${bcatPts}")
+line_array=$(sed_make_json_list<<<"${line_array}")
+bsv_bcatjson_d="bsv_bcat_json_d"
+if [[ ! -d "${bsv_bcatjson_d}" ]]; then
+        mkdir "${bsv_bcatjson_d}"
+fi
+bsv_bcat_json_ | jq > "${bsv_bcatjson_d}/${tx_hash_}.json"
+echo "Json manifest is located at:"
+ls "${bsv_bcatjson_d}/${tx_hash_}.json"
+}
+
+tput_coloring
 if [[ -p "/dev/stdin" ]]; then
-       	tx_hash="$(cat)"
+      	tx_hash="$(cat)"
 else
        	tx_hash="$1"
         if [[ -z "$1" ]]; then
                 echo_bright "provide a txid as \$1"
 		echo_green "./bcat_retriever.sh $example_txid"
-		script_exit
        	        exit 1
+		script_exit
         fi
 fi
+tx_hash_="${tx_hash}"
 
 deps_checker
 size_checker
 hash2asm
 concatenate_parts
 print_location
+make_bcat_json
 script_exit
