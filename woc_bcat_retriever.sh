@@ -85,6 +85,16 @@ hash2asm_variables(){
 	bcat_tx_part=31436844487a646431483477536a67474d48796e645a6d3671784544476a71704a4c
 }
 
+name_bcat_file(){
+		bc_Name="$(cut -d ' ' -f 7 <<<"$asm_txo" | xxd -r -p)"
+	        if [[ "$bc_Name" == ' ' ]]; then
+			bc_Name="$tx_hash".file
+		fi
+		if [[ -f $bc_Name ]]; then
+                	bc_Name="${bc_Name}.dup"
+        	fi
+}
+
 hash2asm(){
 	hash2asm_variables
 	if [[ $(wc -m <<<"$tx_hash") == 65 ]]; then
@@ -113,10 +123,7 @@ hash2asm(){
 		done<<<"$tx_List"
 		line_array=$(printf '%s\n' "${xxdline_array[@]}" | sed '/^[[:space:]]*$/d' | strings -n 4)
 		echo_blue "${line_array}"
-	        bc_Name="$(cut -d ' ' -f 7 <<<"$asm_txo" | xxd -r -p)"
-	        if [[ "$bc_Name" == ' ' ]]; then
-			bc_Name="$tx_hash".file
-		fi
+	        name_bcat_file
 		echo_bright "$(wc -l <<<"$bcatPts") bcat parts:"
 	elif [[ "$(cut -d ' ' -f 3 <<<"$asm_txo")" ==  "$bcat_tx_part" ]]; then
 	        xxd -r -p <<<"$(sed -n '4p' <<<"$asm_arr")" >> "$bc_Name"
@@ -188,6 +195,9 @@ bsv_bcatjson_d="bsv_bcat_json_d"
 if [[ ! -d "${bsv_bcatjson_d}" ]]; then
         mkdir "${bsv_bcatjson_d}"
 fi
+
+# add duplicates logic here
+
 bsv_bcat_json_ | jq > "${bsv_bcatjson_d}/${tx_hash_}.json"
 echo "Json manifest is located at:"
 ls "${bsv_bcatjson_d}/${tx_hash_}.json"
