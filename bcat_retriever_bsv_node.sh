@@ -7,6 +7,17 @@
 # creates a json manifest that includes the file information and
 # list of txid where the data is stored
 
+deps_checker(){
+	if ! [ -x "$(command -v xxd)" ]; then
+		echo "install xxd"
+		exit 1
+	fi
+	if ! [ -x "$(command -v jq)" ]; then
+		echo "install jq"
+		exit 1
+	fi
+}
+
 bsv_script_asm(){ jq .vout[0].scriptPubKey.asm; }
 
 bsv_raw_tx_hex(){ bitcoin-cli getrawtransaction "${bsv_bcattxhash}" 1; }
@@ -136,5 +147,6 @@ bsv_node_bcat_(){
 }
 
 bsv_bcattxhash="$1"
+deps_checker
 tx_hash="${bsv_bcattxhash}"
 bsv_node_bcat_
