@@ -1,10 +1,36 @@
 #!/usr/bin/env bash
 
+# retrieve bcat files using a bsv node
+
+# bcat_retriever.sh uses a local bitcoin node by default;
+# but if not present, it will use the WhatsOnChain.com api and BSV-JS
+# to download files stored on the bsv blockchain
+
+# example usage:
+# $ bash bcat_retriever.sh e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
+# spec: https://bcat.bico.media/
+# upload files here: https://bico.media/
+
+# example_txid=e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
+
+# exit script upon error
 set -e
+
+# if manual_datasource is set to true; it will use a non-default datasource
+# ie; if you have a node and still want to use whatsonchain api
 manual_datasource=false
+
+# if save_json_manifest is set to true; it will create
+# a json file that includes the bcat file information and
+# list of txid where the data is stored
 save_json_manifest=false
+
+# if save_raw_transactions is set to true; it will
+# download the raw hexadecimal bcat and bcat part 
+# transactions into the 'rawtx' folder in the data directory
 save_raw_transactions=false
 
+# download this script from commandline:
 # wget -N -q --show-progress https://raw.githubusercontent.com/bitsko/bcat_protocol_retriever_for_bsv/main/bcat_retriever.sh
 
 deps_checker(){
@@ -115,10 +141,12 @@ set_data_source(){
 
 	if [[ $manual_datasource == true ]]; then
 		# override automatic datasource selection
+		# options are BITCOIN_NODE (default if you have a node up)
+		# and WHATS_ON_CHAIN (default if you do not have a node up)
 		# bcat_retriever_datasource=BITCOIN_NODE
 		bcat_retriever_datasource=WHATS_ON_CHAIN
 	fi
-	echo "Using $bcat_retriever_datasource to obtain file..."
+	echo_blue "Using $bcat_retriever_datasource to obtain file..."
 }
 
 size_checker(){
@@ -152,7 +180,7 @@ get_bcat_script_asm(){
 			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
 				bitcoin-cli getrawtransaction "$1" 0 \
 				> "$bsv_rawtx_dir/$1.rawtx"
-				echo "saving $1.rawtx"
+				echo_green "saving $1.rawtx"
 			fi
 		fi
 	elif [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
@@ -165,7 +193,7 @@ get_bcat_script_asm(){
 			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
 				woc_hex "$1" \
 				> "$bsv_rawtx_dir/$1.rawtx"
-				echo "saving $1.rawtx"
+				echo_green "saving $1.rawtx"
 			fi
 		fi
 	fi
@@ -234,7 +262,7 @@ bcat_part_loop(){
 					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
 						bitcoin-cli getrawtransaction "$line" 0 \
 						> "$bsv_rawtx_dir/$line.rawtx"
-						echo "saving $line.rawtx"
+						echo_green "saving $line.rawtx"
 					fi
 				fi
 			elif [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
@@ -247,7 +275,7 @@ bcat_part_loop(){
 					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
 						woc_hex "$line" \
 						> "$bsv_rawtx_dir/${line}.rawtx"
-						echo "saving $line.rawtx"
+						echo_green "saving $line.rawtx"
 					fi
 				fi
 			fi
@@ -295,14 +323,19 @@ make_bcat_json(){
 	bcatPts=$(sed_function "${bcatPts}")
 	line_array=$(sed_function "${line_array}")
 
-	echo "Json manifest is located at:"
+	echo_bright "Json manifest is located at:"
 	json_filename="${bsv_bcatjson_d}/${1}.json"
 	if [[ -f $json_filename ]]; then
 		json_filename="${json_filename}.dup.$EPOCHSECONDS"
 	fi
+	
+	# validates jq is parseable as it creates the json file
 	bsv_bcat_json_ | jq > "${json_filename}"
-#	bsv_bcat_json_  > "${json_filename}"
-	echo_bright "$(ls ${json_filename})"
+	
+	# if jq is not parsing correctly, do not require it
+	#bsv_bcat_json_  > "${json_filename}"
+	
+	echo_blue "$(ls ${json_filename})"
 }
 
 make_bcat_json_dir(){
