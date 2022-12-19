@@ -4,6 +4,8 @@ manual_datasource=false
 save_json_manifest=false
 save_raw_transactions=false
 
+# wget -N -q --show-progress https://raw.githubusercontent.com/bitsko/bcat_protocol_retriever_for_bsv/main/bcat_retriever.sh
+
 deps_checker(){
 	if ! [[ -x "$(command -v xxd)" ]]; then
 		echo_red "install xxd"
