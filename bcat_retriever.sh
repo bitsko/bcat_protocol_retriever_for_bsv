@@ -328,6 +328,7 @@ script_exit(){
 bash_bcat_retriever(){
 	tput_color
 	set_data_source
+	deps_checker
 	size_checker "$1"
 	if [[ $save_json_manifest == true ]] \
 		|| [[ $save_raw_transactions == true ]]; then
