@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+set -e
 manual_datasource=false
 save_json_manifest=false
 save_raw_transactions=false
@@ -148,9 +149,11 @@ get_bcat_script_asm(){
 		bsv_script_asm=$(bitcoin-cli getrawtransaction "${1}" 1 \
 		| jq .vout[0].scriptPubKey.asm )
 		if [[ $save_raw_transactions == true ]]; then
-			bitcoin-cli getrawtransaction "$1" 0 \
-			> "$bsv_rawtx_dir/$1.rawtx"
-			echo "saving $1.rawtx"
+			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
+				bitcoin-cli getrawtransaction "$1" 0 \
+				> "$bsv_rawtx_dir/$1.rawtx"
+				echo "saving $1.rawtx"
+			fi
 		fi
 	elif [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
 		wocurl1="https://api.whatsonchain.com/v1/"
@@ -159,9 +162,11 @@ get_bcat_script_asm(){
 		get_hex="$(curl -s --location --request GET $woc_url)"
 		bsv_script_asm=\"$(woc_set_asm_txo)\"
 		if [[ $save_raw_transactions == true ]]; then
-			woc_hex "$1" \
-			> "$bsv_rawtx_dir/$1.rawtx"
-			echo "saving $1.rawtx"
+			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
+				woc_hex "$1" \
+				> "$bsv_rawtx_dir/$1.rawtx"
+				echo "saving $1.rawtx"
+			fi
 		fi
 	fi
 }
@@ -215,7 +220,7 @@ describe_file_(){
 
 bcat_part_loop(){
         while IFS=' ' read -r line; do
-		# bcat_parts_array+=( $(sed 's/"//g'<<<"$line") )
+		bcat_parts_array+=( $(sed 's/"//g'<<<"$line") )
                 echo_bright "bcat part txid: ${line}"
                 if [[ $(awk '{ print length }'<<<"$line") != 64 ]]; then
                         echo "bcat part txid not 64 chars!"
@@ -226,9 +231,11 @@ bcat_part_loop(){
 				bsv_script_asm=$(bitcoin-cli getrawtransaction "${line}" 1 \
 				| jq .vout[0].scriptPubKey.asm )
 				if [[ $save_raw_transactions == true ]]; then
-					bitcoin-cli getrawtransaction "$line" 0 \
-					> "$bsv_rawtx_dir/$line.rawtx"
-					echo "saving $line.rawtx"
+					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
+						bitcoin-cli getrawtransaction "$line" 0 \
+						> "$bsv_rawtx_dir/$line.rawtx"
+						echo "saving $line.rawtx"
+					fi
 				fi
 			elif [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
 				wocurl1="https://api.whatsonchain.com/v1/"
@@ -237,9 +244,11 @@ bcat_part_loop(){
 				get_hex="$(curl -s --location --request GET $woc_url)"
 				bsv_script_asm=\"$(woc_set_asm_txo)\"
 				if [[ $save_raw_transactions == true ]]; then
-					woc_hex "$line" \
-					> "$bsv_rawtx_dir/${line}.rawtx"
-					echo "saving $line.rawtx"
+					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
+						woc_hex "$line" \
+						> "$bsv_rawtx_dir/${line}.rawtx"
+						echo "saving $line.rawtx"
+					fi
 				fi
 			fi
 			bcat_part_hex=$(awk '{ print $4 }'<<<"$bsv_script_asm")
@@ -292,6 +301,7 @@ make_bcat_json(){
 		json_filename="${json_filename}.dup.$EPOCHSECONDS"
 	fi
 	bsv_bcat_json_ | jq > "${json_filename}"
+#	bsv_bcat_json_  > "${json_filename}"
 	echo_bright "$(ls ${json_filename})"
 }
 
