@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-manual_datasource=true
+manual_datasource=false
 save_json_manifest=false
 save_raw_transactions=false
 
