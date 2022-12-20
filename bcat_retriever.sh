@@ -18,7 +18,7 @@ set -e
 
 # if manual_datasource is set to true; it will use a non-default datasource
 # ie; if you have a node and still want to use whatsonchain api
-manual_datasource=false
+manual_datasource=true
 
 # if save_json_manifest is set to true; it will create
 # a json file that includes the bcat file information and
@@ -59,8 +59,9 @@ deps_checker(){
 			exit 1
 		fi
 		if [[ ! -d node_modules/bsv/ ]]; then
-			echo_bright "installing BSV js library"
-			npm i --prefix "$(pwd)" bsv --save
+			echo_n_bright "installing BSV js library..."
+			npm i --prefix "$(pwd)" bsv --save &>/dev/null
+			echo -ne "\r"
 		fi
 		bsvjs_ver=$(npm list bsv | awk NR==2 | tr -dc '0-9' | cut -c 1)
 		if [[ $bsvjs_ver -eq "1" ]]; then
@@ -127,6 +128,14 @@ echo_bright(){
 		echo "${bright}${1}${normal}"
 	else
 		echo "$1"
+	fi
+}
+
+echo_n_bright(){
+	if [[ $tput_coloring == true ]]; then
+		echo -n "${bright}${1}${normal}"
+	else
+		echo -n "$1"
 	fi
 }
 
