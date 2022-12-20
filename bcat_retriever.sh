@@ -209,6 +209,7 @@ get_bcat_script_asm(){
 				> "$bsv_rawtx_dir/$1.rawtx"
 				if [[ $verbose_output == true ]]; then
 					echo_green "saving $1.rawtx"
+					echo
 				fi
 			fi
 		fi
@@ -224,6 +225,7 @@ get_bcat_script_asm(){
 				> "$bsv_rawtx_dir/$1.rawtx"
 				if [[ $verbose_output == true ]]; then
 					echo_green "saving $1.rawtx"
+					echo
 				fi
 			fi
 		fi
@@ -301,7 +303,10 @@ bcat_part_loop(){
 					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
 						bitcoin-cli getrawtransaction "$line" 0 \
 						> "$bsv_rawtx_dir/$line.rawtx"
-						echo_green "saving $line.rawtx"
+						if [[ $verbose_output == true ]]; then
+							echo_green "saving $line.rawtx"
+							echo
+						fi
 					fi
 				fi
 			elif [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
@@ -314,7 +319,10 @@ bcat_part_loop(){
 					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
 						_woc_hex "$line" \
 						> "$bsv_rawtx_dir/${line}.rawtx"
-						echo_green "saving $line.rawtx"
+						if [[ $verbose_output == true ]]; then
+							echo_green "saving $line.rawtx"
+							echo
+						fi
 					fi
 				fi
 			fi
@@ -362,7 +370,6 @@ make_bcat_json(){
 	bcatPts=$(sed_function "${bcatPts}")
 	line_array=$(sed_function "${line_array}")
 
-	echo_bright "Json manifest is located at:"
 	json_filename="${bsv_bcatjson_d}/${1}.json"
 	if [[ -f $json_filename ]]; then
 		json_filename="${json_filename}.dup.$EPOCHSECONDS"
@@ -374,7 +381,11 @@ make_bcat_json(){
 	# if jq is not parsing correctly, do not require it
 	#bsv_bcat_json_  > "${json_filename}"
 
-	echo_blue "$(ls ${json_filename})"
+	if [[ $verbose_output == true ]]; then
+		echo_bright "Json manifest is located at:"
+		echo_blue "$(ls ${json_filename})"
+		jq < "${json_filename}"
+	fi
 }
 
 make_bcat_json_dir(){
@@ -436,6 +447,14 @@ test_manifest(){
 		script_exit
 		exit 1
 	fi
+	bcat_part_tx_list=$(sed '1,6d' "$bcat_list_file")
+	while IFS=' ' read -r line; do
+		if [[ $(awk '{ print length }'<<<"$line") -ne 64 ]]; then
+			echo_red "error: extra arguments found in bcat part list"
+			script_exit
+			exit 1
+		fi
+	done<<<"$bcat_part_tx_list"
 	if [[ $save_bcat_list == false ]]; then
 		rm "$bcat_list_file"
 	fi
