@@ -26,9 +26,17 @@ manual_datasource=false
 save_json_manifest=false
 
 # if save_raw_transactions is set to true; it will
-# download the raw hexadecimal bcat and bcat part 
+# download the raw hexadecimal bcat and bcat part
 # transactions into the 'rawtx' folder in the data directory
 save_raw_transactions=false
+
+# if save_bcat_list is set to true; saves a hexadecimal list in the current directory
+# of each bcat protocol argument, as the file <txid>.bcat
+save_bcat_list=false
+
+# if verbost_output is set to true, it prints various
+# datas to the command line as it grabs the file
+verbose_output=false
 
 # download this script from commandline:
 # wget -N -q --show-progress https://raw.githubusercontent.com/bitsko/bcat_protocol_retriever_for_bsv/main/bcat_retriever.sh
@@ -106,6 +114,14 @@ echo_green(){
 	fi
 }
 
+echo_sameline_green(){
+	if [[ $tput_coloring == true ]]; then
+		echo -e "\e[1A\e[K${bright}${green}${1}${normal}"
+	else
+		echo -e "\e[1A\e[K$1"
+	fi
+}
+
 echo_bright(){
 	if [[ $tput_coloring == true ]]; then
 		echo "${bright}${1}${normal}"
@@ -146,7 +162,9 @@ set_data_source(){
 		# bcat_retriever_datasource=BITCOIN_NODE
 		bcat_retriever_datasource=WHATS_ON_CHAIN
 	fi
-	echo_blue "Using $bcat_retriever_datasource to obtain file..."
+	if [[ $verbose_output == true ]]; then
+		echo_blue "Using $bcat_retriever_datasource to obtain file..."
+	fi
 }
 
 size_checker(){
@@ -180,7 +198,9 @@ get_bcat_script_asm(){
 			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
 				bitcoin-cli getrawtransaction "$1" 0 \
 				> "$bsv_rawtx_dir/$1.rawtx"
-				echo_green "saving $1.rawtx"
+				if [[ $verbose_output == true ]]; then
+					echo_green "saving $1.rawtx"
+				fi
 			fi
 		fi
 	elif [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
@@ -191,12 +211,15 @@ get_bcat_script_asm(){
 		bsv_script_asm=\"$(woc_set_asm_txo)\"
 		if [[ $save_raw_transactions == true ]]; then
 			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
-				woc_hex "$1" \
+				_woc_hex "$1" \
 				> "$bsv_rawtx_dir/$1.rawtx"
-				echo_green "saving $1.rawtx"
+				if [[ $verbose_output == true ]]; then
+					echo_green "saving $1.rawtx"
+				fi
 			fi
 		fi
 	fi
+	protocol_check_array+=( $(sed 's/["]//g;/^$/d'<<<$bsv_script_asm) )
 }
 
 bcat_asm_list_(){
@@ -223,6 +246,9 @@ print_manifest(){
         done<<<$(bcat_manifest_)
         bcat_line_array=$(printf '%s\n' "${xxdline_array[@]}" \
                 | sed '/^[[:space:]]*$/d' | strings -n 4)
+	if [[ $verbose_output == true ]]; then
+		echo_blue "${bcat_line_array[@]}"
+	fi
         name_bcat_file
 }
 
@@ -241,7 +267,11 @@ describe_file_(){
                 describe_file1=$(file "${bcat_file_name}")
                 describe_file2=$(ls -hl "${bcat_file_name}" | awk '{ print $5 }')
                 describe_file3=$(ls -l "${bcat_file_name}" | awk '{ print $5 }')
-                echo "${describe_file1} ${describe_file2}"
+		if [[ $verbose_output == true ]]; then
+			echo -e "\e[1A\e[K${describe_file1} ${describe_file2}"
+			echo
+		fi
+		echo_sameline_green "$bcat_file_name"
                 bcat_sha256sum=$(sha256sum "${bcat_file_name}" | cut -d ' ' -f 1)
         fi
 }
@@ -249,7 +279,7 @@ describe_file_(){
 bcat_part_loop(){
         while IFS=' ' read -r line; do
 		bcat_parts_array+=( $(sed 's/"//g'<<<"$line") )
-                echo_bright "bcat part txid: ${line}"
+                echo -e "\e[1A\e[Kgrabbing bcat part txid: ${line}"
                 if [[ $(awk '{ print length }'<<<"$line") != 64 ]]; then
                         echo "bcat part txid not 64 chars!"
 			script_exit
@@ -273,7 +303,7 @@ bcat_part_loop(){
 				bsv_script_asm=\"$(woc_set_asm_txo)\"
 				if [[ $save_raw_transactions == true ]]; then
 					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
-						woc_hex "$line" \
+						_woc_hex "$line" \
 						> "$bsv_rawtx_dir/${line}.rawtx"
 						echo_green "saving $line.rawtx"
 					fi
@@ -328,13 +358,13 @@ make_bcat_json(){
 	if [[ -f $json_filename ]]; then
 		json_filename="${json_filename}.dup.$EPOCHSECONDS"
 	fi
-	
+
 	# validates jq is parseable as it creates the json file
 	bsv_bcat_json_ | jq > "${json_filename}"
-	
+
 	# if jq is not parsing correctly, do not require it
 	#bsv_bcat_json_  > "${json_filename}"
-	
+
 	echo_blue "$(ls ${json_filename})"
 }
 
@@ -351,7 +381,7 @@ make_bcat_json_dir(){
 	fi
 }
 
-woc_hex(){
+_woc_hex(){
         curl -s --location --request GET \
 	"https://api.whatsonchain.com/v1/bsv/main/tx/${1}/hex"
 }
@@ -367,7 +397,39 @@ script_exit(){
 		describe_file_ describe_file1 describe_file2 describe_file3 bcat_sha256sum \
 		bcat_part_loop bcat_part_hex bsv_bcat_json_ sed_function make_bcat_json \
 		json_txid tx_List bcatPts file_info file_size line_array json_filename \
-		make_bcat_json_dir bsv_bcatjson_d bsv_rawtx_dir woc_hex bash_bcat_retriever
+		make_bcat_json_dir bsv_bcatjson_d bsv_rawtx_dir _woc_hex bash_bcat_retriever \
+		protocol_check_array protocol_check_list test_manifest bcat_protocol_arguments
+}
+
+test_manifest(){
+	protocol_check_list=$(printf '%s\n' "${protocol_check_array[@]}'")
+	bcat_list_file="${1}.bcat"
+	if [[ -f $bcat_list_file ]]; then
+		bcat_list_file="${bcat_list_file}.dup$EPOCHSECONDS"
+	fi
+	printf '%s\n' "${protocol_check_array[@]}'" | sed "s/[']//g" > "${bcat_list_file}"
+	read_top_line(){
+		head -n 1 <"$bcat_list_file"
+	}
+	remove_top_line(){
+		sed -i '1d' "$bcat_list_file"
+	}
+	if [[ $(read_top_line) == 0 ]] || [[ $(read_top_line) == 00 ]]; then
+			remove_top_line
+	fi
+	if [[ $(read_top_line) == OP_RETURN ]]; then
+			remove_top_line
+	fi
+	bcat_protocol_arguments=$(cat "$bcat_list_file" | wc -l)
+	if [[ $bcat_protocol_arguments -lt 7 ]]; then
+		echo_red "error"
+		echo_red "Less than 7 arguments provided to the Bcat transaction"
+		script_exit
+		exit 1
+	fi
+	if [[ $save_bcat_list == false ]]; then
+		rm "$bcat_list_file"
+	fi
 }
 
 bash_bcat_retriever(){
@@ -381,6 +443,7 @@ bash_bcat_retriever(){
 	fi
 	get_bcat_script_asm "$1"
 	print_manifest
+	test_manifest "$1"
 	bcat_part_loop
 	if [[ $save_json_manifest == true ]]; then
 		make_bcat_json "$1"
