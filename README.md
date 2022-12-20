@@ -8,19 +8,8 @@ https://github.com/bico-media/bcat
 
 ## example:
 ```
-$ bash bcat_retriever_bsv_node.sh  e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
-bcat txid: e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
-15DHFxWZJT58f9nhyGnsRBqrgwK4W6h4Up
-image/jpeg
+$ bash bcat_retriever.sh e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3
 imagencita.png
-bcat part txid: 05279a48616930ed7a6012b06bf5e3ef94ab598554b63089f7c0bb8e25079805
-bcat part txid: 34601e27a630fdfb4547d581627a7f1650612e59e71c2e4741eb8a50e75ec6b2
-bcat part txid: 88751b1fad284bc0e150dd5b47608383a42f8c233556a24172c20e1b88d2737d
-bcat part txid: b651ca39feb2920932f916fe5c7429a907ee42171f33b40c4036770fb3786d0a
-bcat part txid: ca19eb35b256299e3ef28cbc7b2993e6980d1d738065215ff0876a8abf8799cd
-imagencita.png: JPEG image data, baseline, precision 8, 600x802, components 3 446K
-Json manifest is located at:
-bsv_bcat_json_d/e731ca882656dd61c42d56363eaa63b585f40e1d6f18caeb0c22dec7bf8fc6c3.json
 ```
 
 ## example json manifest 
