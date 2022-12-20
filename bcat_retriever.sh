@@ -18,7 +18,7 @@ set -e
 
 # if manual_datasource is set to true; it will use a non-default datasource
 # ie; if you have a node and still want to use whatsonchain api
-manual_datasource=true
+manual_datasource=false
 
 # if save_json_manifest is set to true; it will create
 # a json file that includes the bcat file information and
