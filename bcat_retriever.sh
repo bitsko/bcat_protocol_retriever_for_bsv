@@ -208,12 +208,9 @@ size_checker(){
 	fi
 }
 
-woc_set_asm_txo(){
-	node <<- BSVJSFROMHEXTOASM
-	let bsv = require('bsv')
-	var script = bsv.Script.fromHex('$get_hex')
-	console.log(script.toAsmString())
-	BSVJSFROMHEXTOASM
+_woc_hex(){
+        curl -s --location --request GET \
+	"https://api.whatsonchain.com/v1/bsv/main/tx/${1}/hex"
 }
 
 get_bcat_script_asm(){
@@ -236,7 +233,7 @@ get_bcat_script_asm(){
 		| jq .vout[0].scriptPubKey.asm )
 		if [[ $save_raw_transactions == true ]]; then
 			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
-				get_data "$1" \
+				_woc_hex "$1" \
 				> "$bsv_rawtx_dir/$1.rawtx"
 				if [[ $verbose_output == true ]]; then
 					echo_green "saving $1.rawtx"
@@ -311,9 +308,10 @@ bcat_part_loop(){
 			script_exit
                         exit 1
                 else
+			bsv_script_asm=$(
+				get_data "${line}" | jq .vout[0].scriptPubKey.asm
+				)
 			if [[ $selected_datasource == BITCOIN_NODE ]]; then
-				bsv_script_asm=$(bitcoin-cli getrawtransaction "${line}" 1 \
-				| jq .vout[0].scriptPubKey.asm )
 				if [[ $save_raw_transactions == true ]]; then
 					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
 						bitcoin-cli getrawtransaction "$line" 0 \
@@ -325,11 +323,6 @@ bcat_part_loop(){
 					fi
 				fi
 			elif [[ $selected_datasource == WHATS_ON_CHAIN ]]; then
-				wocurl1="https://api.whatsonchain.com/v1/"
-				wocurl2="/bsv/main/tx/${line}/out/0/hex"
-				woc_url="${wocurl1}${wocurl2}"
-				get_hex="$(curl -s --location --request GET $woc_url)"
-				bsv_script_asm=\"$(woc_set_asm_txo)\"
 				if [[ $save_raw_transactions == true ]]; then
 					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
 						_woc_hex "$line" \
@@ -421,7 +414,7 @@ script_exit(){
 		tput_coloring red blue normal green bright tput_color echo_red echo_blue \
 		echo_green echo_bright set_data_source test_cli_rawtx test_tx_block_1 \
 		test_woc_avail selected_datasource set_data_source size_checker \
-		woc_set_asm_txo get_bcat_script_asm bsv_script_asm wocurl1 wocurl2 \
+		get_bcat_script_asm bsv_script_asm wocurl1 wocurl2 \
 		woc_url get_hex bcat_asm_list_ bcat_manifest_ bcat_part_list print_manifest \
 		xxdline_array manifest_array bcat_line_array name_bcat_file bcat_file_name \
 		describe_file_ describe_file1 describe_file2 describe_file3 bcat_sha256sum \
