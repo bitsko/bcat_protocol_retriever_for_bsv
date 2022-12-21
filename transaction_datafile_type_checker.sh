@@ -12,18 +12,11 @@ _woc_curl_GET(){
         curl -s --location --request GET "https://api.whatsonchain.com/v1/bsv/main/tx/hash/${1}"
 }
 
-
-
-scriptpubkey_asm_function(){
-	jq -r .vout[$1].scriptPubKey.asm<<<"$transaction_json"
-}
-
 opreturn_check(){
 	while [[ $current_vout -lt $vout_count ]]; do
 		check_opreturn=$(
 			jq -r .vout[$current_vout].scriptPubKey.asm \
 			<<<"$transaction_json"	| awk '{ print $2 }'
-
 		)
 		if [[ $verbose_mode == true ]]; then
 			echo "check_opreturn $check_opreturn"
