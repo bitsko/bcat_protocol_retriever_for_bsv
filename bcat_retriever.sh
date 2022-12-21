@@ -174,14 +174,17 @@ set_data_source(){
 		get_data(){
 			bitcoin-cli getrawtransaction "$1" 1
 		}
+		get_hex(){
+			bitcoin-cli getrawtransaction "$1" 0
+		}
 	elif [[ $selected_datasource == WHATS_ON_CHAIN ]]; then
 		
-		_curl_GET(){
+		get_data(){
  		       curl -s --location --request GET "https://api.whatsonchain.com/v1/bsv/main/tx/hash/${1}"
 		}
-		
-		get_data(){
-			_curl_GET "$1"
+		get_hex(){
+        		curl -s --location --request GET \
+        		"https://api.whatsonchain.com/v1/bsv/main/tx/${1}/hex"
 		}
 	else
 		echo "no datasource available"
@@ -208,37 +211,17 @@ size_checker(){
 	fi
 }
 
-_woc_hex(){
-        curl -s --location --request GET \
-	"https://api.whatsonchain.com/v1/bsv/main/tx/${1}/hex"
-}
-
 get_bcat_script_asm(){
 	bsv_script_asm=$(
 		get_data "${1}" | jq .vout[0].scriptPubKey.asm
-		)
-	if [[ $selected_datasource == BITCOIN_NODE ]]; then
-		if [[ $save_raw_transactions == true ]]; then
-			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
-				bitcoin-cli getrawtransaction "$1" 0 \
-				> "$bsv_rawtx_dir/$1.rawtx"
-				if [[ $verbose_output == true ]]; then
-					echo_green "saving $1.rawtx"
-					echo
-				fi
-			fi
-		fi
-	elif [[ $selected_datasource == WHATS_ON_CHAIN ]]; then
-		bsv_script_asm=$(get_data "${1}" \
-		| jq .vout[0].scriptPubKey.asm )
-		if [[ $save_raw_transactions == true ]]; then
-			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
-				_woc_hex "$1" \
-				> "$bsv_rawtx_dir/$1.rawtx"
-				if [[ $verbose_output == true ]]; then
-					echo_green "saving $1.rawtx"
-					echo
-				fi
+	)
+	if [[ $save_raw_transactions == true ]]; then
+		if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
+			get_hex "$1" \
+			> "$bsv_rawtx_dir/$1.rawtx"
+			if [[ $verbose_output == true ]]; then
+				echo_green "saving $1.rawtx"
+				echo
 			fi
 		fi
 	fi
@@ -311,26 +294,13 @@ bcat_part_loop(){
 			bsv_script_asm=$(
 				get_data "${line}" | jq .vout[0].scriptPubKey.asm
 				)
-			if [[ $selected_datasource == BITCOIN_NODE ]]; then
-				if [[ $save_raw_transactions == true ]]; then
-					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
-						bitcoin-cli getrawtransaction "$line" 0 \
-						> "$bsv_rawtx_dir/$line.rawtx"
-						if [[ $verbose_output == true ]]; then
-							echo_green "saving $line.rawtx"
-							echo
-						fi
-					fi
-				fi
-			elif [[ $selected_datasource == WHATS_ON_CHAIN ]]; then
-				if [[ $save_raw_transactions == true ]]; then
-					if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
-						_woc_hex "$line" \
-						> "$bsv_rawtx_dir/${line}.rawtx"
-						if [[ $verbose_output == true ]]; then
-							echo_green "saving $line.rawtx"
-							echo
-						fi
+			if [[ $save_raw_transactions == true ]]; then
+				if [[ ! -f "$bsv_rawtx_dir/$line.rawtx" ]]; then
+					get_hex "$line" \
+					> "$bsv_rawtx_dir/$line.rawtx"
+					if [[ $verbose_output == true ]]; then
+						echo_green "saving $line.rawtx"
+						echo
 					fi
 				fi
 			fi
@@ -420,7 +390,7 @@ script_exit(){
 		describe_file_ describe_file1 describe_file2 describe_file3 bcat_sha256sum \
 		bcat_part_loop bcat_part_hex bsv_bcat_json_ sed_function make_bcat_json \
 		json_txid tx_List bcatPts file_info file_size line_array json_filename \
-		make_bcat_json_dir bsv_bcatjson_d bsv_rawtx_dir _woc_hex bash_bcat_retriever \
+		make_bcat_json_dir bsv_bcatjson_d bsv_rawtx_dir get_hex bash_bcat_retriever \
 		protocol_check_array protocol_check_list test_manifest bcat_protocol_arguments
 }
 
