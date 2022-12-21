@@ -52,7 +52,7 @@ deps_checker(){
 		script_exit
 		exit 1
 	fi
-	if [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
+	if [[ $selected_datasource == WHATS_ON_CHAIN ]]; then
 		if ! [[ -x "$(command -v npm)" ]]; then
 			echo_red "install npm"
 			script_exit
@@ -141,11 +141,9 @@ echo_n_bright(){
 
 set_data_source(){
 	test_cli_rawtx(){
-		# verifies that the node is both up and running
-		# and that it has txindex=1 configuration
+		# verifies that the node is up and has the raw tx
 		if [[ $(command -v bitcoin-cli) ]]; then
-			test_tx_block_1=0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098
-			bitcoin-cli getrawtransaction "$test_tx_block_1"
+			bitcoin-cli getrawtransaction "$1" 2>/dev/null
 		fi
 	}
 
@@ -155,9 +153,9 @@ set_data_source(){
 	}
 
 	if [[ $(test_cli_rawtx) ]]; then
-		bcat_retriever_datasource=BITCOIN_NODE
+		selected_datasource=BITCOIN_NODE
 	elif [[ $(test_woc_avail) == "Whats On Chain" ]]; then
-		bcat_retriever_datasource=WHATS_ON_CHAIN
+		selected_datasource=WHATS_ON_CHAIN
 	else
 		echo "error: no raw tx from node and no response from woc"
 		script_exit
@@ -168,11 +166,30 @@ set_data_source(){
 		# override automatic datasource selection
 		# options are BITCOIN_NODE (default if you have a node up)
 		# and WHATS_ON_CHAIN (default if you do not have a node up)
-		# bcat_retriever_datasource=BITCOIN_NODE
-		bcat_retriever_datasource=WHATS_ON_CHAIN
+		# selected_datasource=BITCOIN_NODE
+		selected_datasource=WHATS_ON_CHAIN
 	fi
+	if [[ $selected_datasource == BITCOIN_NODE ]]; then
+		
+		get_data(){
+			bitcoin-cli getrawtransaction "$1" 1
+		}
+	elif [[ $selected_datasource == WHATS_ON_CHAIN ]]; then
+		
+		_curl_GET(){
+ 		       curl -s --location --request GET "https://api.whatsonchain.com/v1/bsv/main/tx/hash/${1}"
+		}
+		
+		get_data(){
+			_curl_GET "$1"
+		}
+	else
+		echo "no datasource available"
+		exit 1
+	fi
+	
 	if [[ $verbose_output == true ]]; then
-		echo_blue "Using $bcat_retriever_datasource to obtain file..."
+		echo_blue "Using $selected_datasource to obtain file..."
 	fi
 }
 
@@ -200,9 +217,10 @@ woc_set_asm_txo(){
 }
 
 get_bcat_script_asm(){
-	if [[ $bcat_retriever_datasource == BITCOIN_NODE ]]; then
-		bsv_script_asm=$(bitcoin-cli getrawtransaction "${1}" 1 \
-		| jq .vout[0].scriptPubKey.asm )
+	bsv_script_asm=$(
+		get_data "${1}" | jq .vout[0].scriptPubKey.asm
+		)
+	if [[ $selected_datasource == BITCOIN_NODE ]]; then
 		if [[ $save_raw_transactions == true ]]; then
 			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
 				bitcoin-cli getrawtransaction "$1" 0 \
@@ -213,15 +231,12 @@ get_bcat_script_asm(){
 				fi
 			fi
 		fi
-	elif [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
-		wocurl1="https://api.whatsonchain.com/v1/"
-		wocurl2="/bsv/main/tx/${1}/out/0/hex"
-		woc_url="${wocurl1}${wocurl2}"
-		get_hex="$(curl -s --location --request GET $woc_url)"
-		bsv_script_asm=\"$(woc_set_asm_txo)\"
+	elif [[ $selected_datasource == WHATS_ON_CHAIN ]]; then
+		bsv_script_asm=$(get_data "${1}" \
+		| jq .vout[0].scriptPubKey.asm )
 		if [[ $save_raw_transactions == true ]]; then
 			if [[ ! -f "$bsv_rawtx_dir/$1.rawtx" ]]; then
-				_woc_hex "$1" \
+				get_data "$1" \
 				> "$bsv_rawtx_dir/$1.rawtx"
 				if [[ $verbose_output == true ]]; then
 					echo_green "saving $1.rawtx"
@@ -296,7 +311,7 @@ bcat_part_loop(){
 			script_exit
                         exit 1
                 else
-			if [[ $bcat_retriever_datasource == BITCOIN_NODE ]]; then
+			if [[ $selected_datasource == BITCOIN_NODE ]]; then
 				bsv_script_asm=$(bitcoin-cli getrawtransaction "${line}" 1 \
 				| jq .vout[0].scriptPubKey.asm )
 				if [[ $save_raw_transactions == true ]]; then
@@ -309,7 +324,7 @@ bcat_part_loop(){
 						fi
 					fi
 				fi
-			elif [[ $bcat_retriever_datasource == WHATS_ON_CHAIN ]]; then
+			elif [[ $selected_datasource == WHATS_ON_CHAIN ]]; then
 				wocurl1="https://api.whatsonchain.com/v1/"
 				wocurl2="/bsv/main/tx/${line}/out/0/hex"
 				woc_url="${wocurl1}${wocurl2}"
@@ -401,16 +416,11 @@ make_bcat_json_dir(){
 	fi
 }
 
-_woc_hex(){
-        curl -s --location --request GET \
-	"https://api.whatsonchain.com/v1/bsv/main/tx/${1}/hex"
-}
-
 script_exit(){
 	unset script_exit manual_datasource save_json_manifest save_raw_transactions \
 		tput_coloring red blue normal green bright tput_color echo_red echo_blue \
 		echo_green echo_bright set_data_source test_cli_rawtx test_tx_block_1 \
-		test_woc_avail bcat_retriever_datasource set_data_source size_checker \
+		test_woc_avail selected_datasource set_data_source size_checker \
 		woc_set_asm_txo get_bcat_script_asm bsv_script_asm wocurl1 wocurl2 \
 		woc_url get_hex bcat_asm_list_ bcat_manifest_ bcat_part_list print_manifest \
 		xxdline_array manifest_array bcat_line_array name_bcat_file bcat_file_name \
@@ -462,7 +472,7 @@ test_manifest(){
 
 bash_bcat_retriever(){
 	tput_color
-	set_data_source
+	set_data_source "$1"
 	deps_checker
 	size_checker "$1"
 	if [[ $save_json_manifest == true ]] \
