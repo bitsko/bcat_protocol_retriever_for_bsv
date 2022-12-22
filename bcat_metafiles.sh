@@ -58,6 +58,7 @@ manual_datasource=false
 tput_color(){
 	tput_coloring=false
 	if [[ $(command -v tput) ]]; then
+		# disable color in output here
 		tput_coloring=true
 		red=$(tput setaf 1)
 		blue=$(tput setaf 4)
@@ -313,6 +314,7 @@ metafile_retriever_function(){
 
 		if [[ -z $metafile_json ]]; then
 			echo "the txid does not have any data in argument # 8 of the scriptPubKey asm"
+			script_exit
 			exit 1
 		fi
 
@@ -351,6 +353,7 @@ metafile_retriever_function(){
 		done<<<"$metafile_chunkList"
 	else
 		echo "missing chunkList!"
+		script_exit
 		exit 1
 	fi
 	}
@@ -591,10 +594,6 @@ bcat_retriever_function(){
 	}
 
 	bash_bcat_retriever(){
-#		tput_color
-#		set_data_source "$1"
-#		deps_checker
-#		size_checker "$1"
 		if [[ $save_json_manifest == true ]] \
 			|| [[ $save_raw_transactions == true ]]; then
 			make_bcat_json_dir
